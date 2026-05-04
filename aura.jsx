@@ -2,6 +2,29 @@ import { useState, useEffect, useMemo, useRef } from "react";
 
 const DEFAULT_COLORS = ["#1a1040", "#2d1b69", "#4c1d95"];
 
+// localStorage utilities
+const STORAGE_KEYS = {
+  readings: "aura_readings",
+  user: "aura_user",
+  theme: "aura_theme"
+};
+
+const saveReadings = (readings) => {
+  try { localStorage.setItem(STORAGE_KEYS.readings, JSON.stringify(readings)); } catch (e) { console.error("Failed to save readings", e); }
+};
+
+const loadReadings = () => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.readings) || "[]"); } catch (e) { return []; }
+};
+
+const saveUser = (user) => {
+  try { localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user)); } catch (e) { console.error("Failed to save user", e); }
+};
+
+const loadUser = () => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.user) || "null"); } catch (e) { return null; }
+};
+
 const THEMES = {
   dark: {
     bg: "#060911",
@@ -256,6 +279,14 @@ export default function Aura() {
   const [err, setErr] = useState(null);
   const [theme, setTheme] = useState("dark");
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [readings, setReadings] = useState([]);
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState("home");
+
+  useEffect(() => {
+    setReadings(loadReadings());
+    setUser(loadUser());
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -307,32 +338,12 @@ export default function Aura() {
     if (!input.trim() || phase === "loading") return;
     setPhase("loading"); setErr(null);
     try {
-      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        const fallbackAura = buildFallbackAura(input);
-        setAura(fallbackAura);
-        setColors(fallbackAura.colors || DEFAULT_COLORS);
-        setPhase("result");
-        return;
-      }
-
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 800,
-          system: `You are a poetic aura reader. Respond ONLY with valid JSON, no markdown fences, no extra text:
-{"auraName":"2-4 evocative words (e.g. The Quiet Storm)","auraType":"one of: Seeker Dreamer Warrior Sage Healer Creator Guardian Wanderer","element":"one of: Fire Water Earth Air Aether Storm Void Light","description":"Two rich poetic sentences addressing person with 'you'","colors":["#hex1","#hex2","#hex3"],"wordForToday":"one word","activity":"specific activity in 8-12 words","soundscape":"6-8 words describing the music/sound"}
-Make colors vivid, emotionally expressive, and harmonious with each other.`,
-          messages: [{ role: "user", content: input }]
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input }),
       });
-      if (!res.ok) throw new Error(`Anthropic request failed with ${res.status}`);
+      if (!res.ok) throw new Error(`Server proxy failed: ${res.status}`);
       const data = await res.json();
       const text = data.content?.find(b => b.type === "text")?.text || "{}";
       const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -342,16 +353,60 @@ Make colors vivid, emotionally expressive, and harmonious with each other.`,
       };
       setAura(safeAura);
       if (safeAura.colors?.length === 3) setColors(safeAura.colors);
+      const newReading = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        input,
+        aura: safeAura,
+        colors: safeAura.colors || DEFAULT_COLORS,
+        userId: user?.id || null,
+      };
+      const updatedReadings = [newReading, ...readings];
+      setReadings(updatedReadings);
+      saveReadings(updatedReadings);
       setPhase("result");
-    } catch(e) {
+    } catch (e) {
       const fallbackAura = buildFallbackAura(input);
       setAura(fallbackAura);
       setColors(fallbackAura.colors || DEFAULT_COLORS);
+      const newReading = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        input,
+        aura: fallbackAura,
+        colors: fallbackAura.colors || DEFAULT_COLORS,
+        userId: user?.id || null,
+      };
+      const updatedReadings = [newReading, ...readings];
+      setReadings(updatedReadings);
+      saveReadings(updatedReadings);
       setPhase("result");
     }
   };
 
-  const reset = () => { setPhase("idle"); setInput(""); setAura(null); setColors(DEFAULT_COLORS); setErr(null); };
+  const reset = () => { setPhase("idle"); setInput(""); setAura(null); setColors(DEFAULT_COLORS); setErr(null); setView("home"); };
+
+  const deleteReading = (id) => {
+    const updated = readings.filter(r => r.id !== id);
+    setReadings(updated);
+    saveReadings(updated);
+  };
+
+  const clearAllReadings = () => {
+    setReadings([]);
+    saveReadings([]);
+  };
+
+  const loginUser = (username) => {
+    const newUser = { id: Date.now(), name: username, loginDate: new Date().toISOString() };
+    setUser(newUser);
+    saveUser(newUser);
+  };
+
+  const logoutUser = () => {
+    setUser(null);
+    saveUser(null);
+  }
 
   const t = THEMES[theme];
   const orbGlow = `0 0 60px ${colors[0]}70, 0 0 120px ${colors[1]}45, 0 0 220px ${colors[2]}25`;

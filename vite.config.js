@@ -5,6 +5,13 @@ export default defineConfig({
   plugins: [react()],
   base: '/aura-app/',
   server: {
-    open: true
+    open: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 })
