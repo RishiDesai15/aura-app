@@ -1,5 +1,77 @@
 import { useState, useEffect, useMemo } from "react";
 
+const DEFAULT_COLORS = ["#1a1040", "#2d1b69", "#4c1d95"];
+
+const MOOD_RULES = [
+  { terms: ["sad", "down", "blue", "grief", "heavy", "heartbroken"], auraType: "Healer", element: "Water", auraName: "The Quiet Tide", wordForToday: "Breathe", activity: "Take a slow walk near water and notice the sky", soundscape: "Soft rain over distant piano and deep hums" },
+  { terms: ["anxious", "worried", "nervous", "overwhelmed", "stressed"], auraType: "Seeker", element: "Air", auraName: "The Restless Current", wordForToday: "Soften", activity: "Clear one small surface and let your shoulders drop", soundscape: "Breathlike synths with drifting wind and chimes" },
+  { terms: ["angry", "mad", "frustrated", "rage", "irritated"], auraType: "Warrior", element: "Fire", auraName: "Ember Rising", wordForToday: "Channel", activity: "Move your body hard for ten focused minutes", soundscape: "Low drums, crackling ember noise, and pulsing bass" },
+  { terms: ["hopeful", "excited", "bright", "energized", "alive"], auraType: "Creator", element: "Light", auraName: "Radiant Bloom", wordForToday: "Expand", activity: "Write one thing you want more of this week", soundscape: "Warm pads, shimmering bells, and rising harmonics" },
+  { terms: ["tired", "exhausted", "drained", "burnt out", "burned out"], auraType: "Guardian", element: "Earth", auraName: "The Quiet Hearth", wordForToday: "Restore", activity: "Cancel one nonessential thing and rest without guilt", soundscape: "Soft drone, night insects, and slow wooden textures" },
+  { terms: ["calm", "peaceful", "steady", "grounded", "clear"], auraType: "Sage", element: "Earth", auraName: "Still Horizon", wordForToday: "Trust", activity: "Sit in silence for five minutes and breathe slowly", soundscape: "Gentle ambient tones with sparse bells and space" },
+];
+
+function hashString(value) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+function hslToHex(hue, saturation, lightness) {
+  const normalize = number => number / 100;
+  const normalizedHue = ((hue % 360) + 360) % 360 / 360;
+  const s = normalize(saturation);
+  const l = normalize(lightness);
+
+  const hueToRgb = (p, q, t) => {
+    let channel = t;
+    if (channel < 0) channel += 1;
+    if (channel > 1) channel -= 1;
+    if (channel < 1 / 6) return p + (q - p) * 6 * channel;
+    if (channel < 1 / 2) return q;
+    if (channel < 2 / 3) return p + (q - p) * (2 / 3 - channel) * 6;
+    return p;
+  };
+
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const r = Math.round(hueToRgb(p, q, normalizedHue + 1 / 3) * 255);
+  const g = Math.round(hueToRgb(p, q, normalizedHue) * 255);
+  const b = Math.round(hueToRgb(p, q, normalizedHue - 1 / 3) * 255);
+  return `#${[r, g, b].map(channel => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function buildFallbackAura(input) {
+  const normalized = input.toLowerCase();
+  const matchedRule = MOOD_RULES.find(rule => rule.terms.some(term => normalized.includes(term))) || null;
+  const hash = hashString(normalized || "aura");
+  const palette = matchedRule
+    ? null
+    : [0, 1, 2].map(offset => hslToHex((hash + offset * 37) % 360, 58 + ((hash >> (offset + 2)) % 18), 42 + ((hash >> (offset + 5)) % 14)));
+
+  const auraName = matchedRule?.auraName || ["The", "Silent", "Ember", "Moonlit", "Wild", "Velvet", "Starlit", "Drift", "Pulse", "Wanderer"][hash % 10] + " " + ["Bloom", "Current", "Signal", "Halo", "Storm", "Thread", "Echo", "Fever", "Field", "Light"][Math.floor(hash / 10) % 10];
+  const auraType = matchedRule?.auraType || ["Seeker", "Dreamer", "Warrior", "Sage", "Healer", "Creator", "Guardian", "Wanderer"][hash % 8];
+  const element = matchedRule?.element || ["Fire", "Water", "Earth", "Air", "Aether", "Storm", "Void", "Light"][Math.floor(hash / 8) % 8];
+  const wordForToday = matchedRule?.wordForToday || ["Move", "Listen", "Trust", "Begin", "Rest", "Expand", "Anchor", "Release"][Math.floor(hash / 13) % 8];
+  const activity = matchedRule?.activity || `Spend ten minutes doing ${["a tidy reset", "slow breathing", "a short walk", "stretching", "free writing", "one small cleanup"][Math.floor(hash / 17) % 6]}.`;
+  const soundscape = matchedRule?.soundscape || [
+    "Soft ambient drones with distant chimes",
+    "Warm synths and rainfall texture",
+    "Low pulses with airy bells",
+    "Quiet strings and night wind",
+  ][Math.floor(hash / 19) % 4];
+
+  const colors = matchedRule?.terms ? [0, 1, 2].map(offset => hslToHex((hash + offset * 24) % 360, 56 + ((hash >> (offset + 1)) % 18), 40 + ((hash >> (offset + 4)) % 12))) : palette;
+
+  const description = matchedRule
+    ? `You are carrying ${normalized.includes("sad") ? "a quiet ache" : "a weather system"} that asks for gentleness, not judgment. Your aura leans toward ${element.toLowerCase()}, where feeling becomes a guide instead of a weight.`
+    : `You are holding a shifting current of feeling, and it wants to be seen without being fixed. Your aura moves through ${element.toLowerCase()} like a signal finding its way home.`;
+
+  return { auraName, auraType, element, description, colors, wordForToday, activity, soundscape };
+}
+
 function StarField() {
   const stars = useMemo(() => Array.from({ length: 70 }, (_, i) => ({
     id: i, x: Math.random() * 100, y: Math.random() * 100,
@@ -67,9 +139,22 @@ export default function Aura() {
     if (!input.trim() || phase === "loading") return;
     setPhase("loading"); setErr(null);
     try {
+      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        const fallbackAura = buildFallbackAura(input);
+        setAura(fallbackAura);
+        setColors(fallbackAura.colors || DEFAULT_COLORS);
+        setPhase("result");
+        return;
+      }
+
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 800,
@@ -79,19 +164,26 @@ Make colors vivid, emotionally expressive, and harmonious with each other.`,
           messages: [{ role: "user", content: input }]
         })
       });
+      if (!res.ok) throw new Error(`Anthropic request failed with ${res.status}`);
       const data = await res.json();
       const text = data.content?.find(b => b.type === "text")?.text || "{}";
       const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-      setAura(parsed);
-      if (parsed.colors?.length === 3) setColors(parsed.colors);
+      const safeAura = {
+        ...buildFallbackAura(input),
+        ...parsed,
+      };
+      setAura(safeAura);
+      if (safeAura.colors?.length === 3) setColors(safeAura.colors);
       setPhase("result");
     } catch(e) {
-      setErr("Couldn't read your aura. Try again.");
-      setPhase("idle");
+      const fallbackAura = buildFallbackAura(input);
+      setAura(fallbackAura);
+      setColors(fallbackAura.colors || DEFAULT_COLORS);
+      setPhase("result");
     }
   };
 
-  const reset = () => { setPhase("idle"); setInput(""); setAura(null); setColors(["#1a1040","#2d1b69","#4c1d95"]); };
+  const reset = () => { setPhase("idle"); setInput(""); setAura(null); setColors(DEFAULT_COLORS); setErr(null); };
 
   const orbGlow = `0 0 60px ${colors[0]}70, 0 0 120px ${colors[1]}45, 0 0 220px ${colors[2]}25`;
   const serif = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
