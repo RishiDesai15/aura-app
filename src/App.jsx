@@ -338,7 +338,8 @@ export default function Aura() {
     if (!input.trim() || phase === "loading") return;
     setPhase("loading"); setErr(null);
     try {
-      const res = await fetch("/api/claude", {
+      const apiUrl = import.meta.env.VITE_API_URL || "/api/claude";
+      const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
