@@ -571,6 +571,60 @@ export default function Aura() {
           </button>
         </div>
       )}
+
+      {/* Navigation buttons */}
+      <div style={{ position: "absolute", bottom: 24, left: 24, display: "flex", gap: 12, zIndex: 10 }}>
+        <button onClick={() => setView("home")} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${view === "home" ? t.borderHover : t.border}`, background: view === "home" ? t.card : "transparent", color: t.text, fontFamily: sans, fontSize: 10, textTransform: "uppercase", cursor: "pointer" }}>Home</button>
+        <button onClick={() => setView("history")} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${view === "history" ? t.borderHover : t.border}`, background: view === "history" ? t.card : "transparent", color: t.text, fontFamily: sans, fontSize: 10, textTransform: "uppercase", cursor: "pointer" }}>History ({readings.length})</button>
+        <button onClick={() => setView("profile")} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${view === "profile" ? t.borderHover : t.border}`, background: view === "profile" ? t.card : "transparent", color: t.text, fontFamily: sans, fontSize: 10, textTransform: "uppercase", cursor: "pointer" }}>Profile</button>
+      </div>
+
+      {/* History view */}
+      {view === "history" && phase !== "result" && (
+        <div style={{ width: "100%", maxWidth: 800, zIndex: 1, animation: "fadeUp 0.8s ease both" }}>
+          <h2 style={{ fontFamily: serif, fontSize: 40, fontWeight: 300, textAlign: "center", margin: "0 0 32px", color: t.text }}>Past Readings</h2>
+          {readings.length === 0 ? (
+            <p style={{ textAlign: "center", color: t.muted }}>No readings yet. Read an aura to begin.</p>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+                {readings.map((reading) => (
+                  <div key={reading.id} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 16, cursor: "pointer", transition: "all .2s" }} onClick={() => { setAura(reading.aura); setColors(reading.colors); setInput(reading.input); setPhase("result"); setView("home"); }}>
+                    <div style={{ fontSize: 12, color: t.label, marginBottom: 8 }}>{new Date(reading.timestamp).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 16, fontFamily: serif, color: t.text, marginBottom: 8 }}>{reading.aura.auraName}</div>
+                    <div style={{ fontSize: 12, color: t.muted, marginBottom: 12 }}>"{reading.input.substring(0, 60)}{reading.input.length > 60 ? "..." : ""}"</div>
+                    <button onClick={(e) => { e.stopPropagation(); deleteReading(reading.id); }} style={{ fontSize: 10, padding: "4px 8px", borderRadius: 4, border: `1px solid ${t.border}`, background: "transparent", color: t.muted, cursor: "pointer" }}>Delete</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={clearAllReadings} style={{ display: "block", margin: "24px auto 0", padding: "8px 16px", borderRadius: 100, border: `1px solid ${t.border}`, background: "transparent", color: t.muted, fontFamily: sans, fontSize: 11, cursor: "pointer" }}>Clear All</button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Profile view */}
+      {view === "profile" && phase !== "result" && (
+        <div style={{ width: "100%", maxWidth: 500, zIndex: 1, animation: "fadeUp 0.8s ease both", textAlign: "center" }}>
+          <h2 style={{ fontFamily: serif, fontSize: 40, fontWeight: 300, margin: "0 0 32px", color: t.text }}>Account</h2>
+          {user ? (
+            <>
+              <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
+                <div style={{ fontSize: 14, color: t.label, marginBottom: 8 }}>Logged in as</div>
+                <div style={{ fontSize: 20, fontFamily: serif, color: t.text, marginBottom: 16 }}>{user.name}</div>
+                <div style={{ fontSize: 12, color: t.muted, marginBottom: 16 }}>Member since {new Date(user.loginDate).toLocaleDateString()}</div>
+                <div style={{ fontSize: 13, color: t.muted }}>{readings.filter(r => r.userId === user.id).length} readings</div>
+              </div>
+              <button onClick={logoutUser} style={{ padding: "10px 24px", borderRadius: 100, border: `1px solid ${t.border}`, background: "transparent", color: t.text, fontFamily: sans, fontSize: 11, cursor: "pointer" }}>Sign Out</button>
+            </>
+          ) : (
+            <>
+              <input type="text" id="username-input" placeholder="Enter your name" style={{ width: "100%", padding: "12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontFamily: sans, fontSize: 14, boxSizing: "border-box", marginBottom: 16 }} />
+              <button onClick={() => { const username = document.getElementById("username-input").value.trim(); if (username) loginUser(username); }} style={{ padding: "10px 24px", borderRadius: 100, border: `1px solid ${t.border}`, background: "transparent", color: t.text, fontFamily: sans, fontSize: 11, cursor: "pointer" }}>Sign In</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
