@@ -620,8 +620,19 @@ export default function Aura() {
             </>
           ) : (
             <>
-              <input type="text" id="username-input" placeholder="Enter your name" style={{ width: "100%", padding: "12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontFamily: sans, fontSize: 14, boxSizing: "border-box", marginBottom: 16 }} />
-              <button onClick={() => { const username = document.getElementById("username-input").value.trim(); if (username) loginUser(username); }} style={{ padding: "10px 24px", borderRadius: 100, border: `1px solid ${t.border}`, background: "transparent", color: t.text, fontFamily: sans, fontSize: 11, cursor: "pointer" }}>Sign In</button>
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 12, color: t.label, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.1em" }}>Quick login</p>
+                <input type="text" id="username-input" placeholder="Enter your name" style={{ width: "100%", padding: "12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontFamily: sans, fontSize: 14, boxSizing: "border-box", marginBottom: 12 }} />
+                <button onClick={() => { const username = document.getElementById("username-input").value.trim(); if (username) loginUser(username); }} style={{ width: "100%", padding: "10px 24px", borderRadius: 100, border: `1px solid ${t.border}`, background: "transparent", color: t.text, fontFamily: sans, fontSize: 11, cursor: "pointer", marginBottom: 24 }}>Sign In</button>
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 12, color: t.label, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.1em" }}>Or connect with</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <button onClick={() => window.location.href = `https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GITHUB_CLIENT_ID || 'demo'}&redirect_uri=${window.location.origin}/aura-app/&scope=user:email`} style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontFamily: sans, fontSize: 11, cursor: "pointer" }}>GitHub</button>
+                  <button onClick={() => window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${import.meta.env.VITE_GOOGLE_CLIENT_ID || 'demo'}&redirect_uri=${window.location.origin}/aura-app/&response_type=code&scope=openid%20profile%20email`} style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontFamily: sans, fontSize: 11, cursor: "pointer" }}>Google</button>
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: t.muted, textAlign: "center", marginTop: 16 }}>Set up OAuth credentials in GitHub/Google Console to enable sign-in</p>
             </>
           )}
         </div>
